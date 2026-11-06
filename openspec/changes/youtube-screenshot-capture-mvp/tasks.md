@@ -53,13 +53,13 @@
 - Confirm direct canvas capture is the dependable primary method for the MVP and that the visible-tab crop strategy is abandoned.
 
 ## 9. Metadata export and verification
-- Status: In progress / final verification
+- Status: Complete
 - Validate the JSON metadata contract for required and optional fields, timestamp formatting, and image dimensions.
 - Verify file-pair consistency and failure handling for incomplete saves.
 - Confirm the extension remains compatible with macOS Monterey and older Intel-based Macs and that it does not require a database or backend.
 
 ## 10. Test matrix and acceptance validation
-- Status: Complete for current automated checks
+- Status: Complete
 - Add unit tests for metadata validation, file naming, frame-size logic, request/response contracts, and error codes.
 - Add integration tests for successful capture, command-triggered flow, failed download, invalid video states, and partial file-pair handling.
 - Add manual browser tests for supported watch pages, keyboard shortcut behavior, and direct media-element capture validation.
@@ -71,3 +71,4 @@
 - Confirm the MVP is aligned with the approved architecture and constraints.
 - Summarize the accepted scope and any deferred enhancements before closing out the change.
 - Stop before Milestone 2 and keep the approved architecture focused on direct frame capture only.
+- Explicitly identify the remaining manual browser acceptance checks that require real Chrome interaction on macOS.

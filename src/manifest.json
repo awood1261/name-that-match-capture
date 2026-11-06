@@ -20,7 +20,7 @@
     "capture-video": {
       "suggested_key": {
         "default": "Ctrl+Shift+Y",
-        "mac": "Command+Control+Y"
+        "mac": "Command+Ctrl+Y"
       },
       "description": "Capture a paused YouTube frame"
     }

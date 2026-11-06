@@ -1,95 +1,154 @@
-# Name That Match — Capture
+# Name That Match Capture
 
-A lightweight Google Chrome extension for capturing wrestling match screenshots from YouTube and organizing them for use in **Name That Match**, a professional wrestling trivia game.
+A lightweight Chrome extension for capturing paused YouTube frames and saving them locally with matching JSON metadata for use in Name That Match workflows.
 
-## Project Overview
+## Project purpose
 
-Name That Match challenges contestants to identify professional wrestling matches using screenshots from match footage.
+This project creates a local-first tool for capturing still frames from standard YouTube watch pages without a backend, cloud sync, or browser UI capture. The extension is intended for private use in collecting wrestling footage screenshots and their source metadata.
 
-The Capture extension is a companion tool designed to streamline the process of collecting screenshots and their associated metadata.
+## Supported environment
 
-The extension will be developed independently of the main game application.
+- Chrome Manifest V3
+- Standard YouTube watch pages only
+- macOS Monterey 12.7.6 and later-compatible Chrome builds
+- Intel MacBook Pro development environment
+- Local file output only
 
-## Planned Features
+Unsupported in the MVP:
 
-- Capture screenshots from YouTube videos.
-- Automatically record the YouTube video ID, URL, and playback timestamp.
-- Save screenshots locally with unique filenames.
-- Associate screenshots with their source footage.
-- Export structured metadata for the Name That Match library.
-- Support batch screenshot collection and subsequent review.
-- Operate without requiring a cloud backend.
+- YouTube Shorts
+- Embedded players
+- YouTube Music or non-watch pages
+- Any workflow that bypasses browser security protections
+- Any cloud-based storage or analytics
 
-Features are subject to validation and approval through OpenSpec.
+## Architecture
 
-## Technology
+The final approved architecture uses the active YouTube media element as the source of truth. The extension validates that the page is a supported watch page, confirms the video is paused, captures the active frame directly into a canvas, and saves:
 
-**Planned stack:**
-- TypeScript (strict mode)
-- Google Chrome Extensions (Manifest V3)
-- Standard CSS / CSS Modules where appropriate
-- Node.js for development tooling
-- OpenSpec for specification-driven development
+- a PNG screenshot
+- a matching JSON metadata file
 
-The final build tooling and architecture will be determined during exploration.
+Both files share the same capture ID and are placed under:
 
-## Development Workflow
+- Downloads/NameThatMatch/<videoId>/
 
-All meaningful features and architectural changes follow OpenSpec:
+## Development setup
 
-1. **Explore** — Investigate requirements, APIs, constraints, and existing code.
-2. **Specify** — Document requirements and acceptance criteria.
-3. **Design** — Define architecture, data contracts, and component responsibilities.
-4. **Plan** — Break implementation into small, verifiable tasks.
-5. **Implement** — Follow the approved specification.
-6. **Verify** — Run tests and validate behavior.
-7. **Archive** — Archive completed OpenSpec changes.
+Requirements:
 
-Avoid implementing features before their specifications are approved.
+- Node.js 20.19.6 or compatible npm 10.x
+- Google Chrome with extension developer mode enabled
+- macOS or another supported desktop OS for local testing
 
-## Design Principles
+Install dependencies:
 
-- Lightweight and compatible with older Intel-based MacBooks.
-- Minimal Chrome permissions.
-- Local-first screenshot and metadata storage.
-- No unnecessary external services or subscriptions.
-- No Tailwind CSS or utility-first CSS frameworks.
-- Clear separation between capture, metadata, storage, and UI.
-- Reliable error handling and recoverable capture failures.
-- No bypassing of browser security restrictions or protected video content.
+```bash
+npm install
+```
 
-## Relationship to Name That Match
+Run checks:
 
-The extension will eventually produce image assets and structured metadata that can be imported into the main Name That Match application.
+```bash
+npm test
+npm run typecheck
+npm run build
+```
 
-The integration contract will be defined through OpenSpec to avoid tightly coupling the two repositories.
+OpenSpec validation:
 
-## Usage
+```bash
+npx openspec validate youtube-screenshot-capture-mvp --type change --no-interactive
+```
 
-To capture a paused frame from a YouTube watch page:
+## Load the unpacked extension in Chrome
 
-1. Load the extension in Chrome using Developer mode and the unpacked project folder.
-2. Open a standard YouTube watch page and pause the video.
-3. Use the extension popup button or the keyboard shortcut.
+1. Open Chrome.
+2. Visit chrome://extensions.
+3. Enable Developer mode.
+4. Choose Load unpacked.
+5. Select the project folder containing the built extension output or the source project if the build has already been generated.
+6. Confirm the extension loads without errors.
 
-### Keyboard shortcut
+## How to capture a screenshot
 
-- macOS: `Command+Control+Y`
-- Windows/Linux: `Ctrl+Shift+Y`
+1. Open a standard YouTube watch page.
+2. Pause the video.
+3. Click the extension action button or use the keyboard shortcut.
+4. The extension captures the current frame from the active video element and saves it locally.
+5. It reports success only after both the PNG and JSON files have been saved successfully.
 
-This shortcut is intentionally set away from the common `Command+Shift+Y` combination because that binding is frequently consumed by screen-capture utilities such as Screeny.
+## Keyboard shortcut
 
-## Project Status
+- macOS: Command+Ctrl+Y
+- Windows/Linux: Ctrl+Shift+Y
 
-**Phase: Initial setup / architectural exploration**
+The default binding intentionally avoids Command+Shift+Y because that shortcut is often consumed by system or screen-capture utilities such as Screeny.
 
-The Chrome extension has not yet been implemented.
+If needed, users can customize the shortcut in Chrome at:
 
-## Content and Copyright
+- chrome://extensions/shortcuts
 
-Captured wrestling footage may be protected by copyright. Users are responsible for ensuring they have appropriate rights or permissions for their intended use.
+## Save location and file pair behavior
 
-The extension will not bypass DRM, access controls, or other content protections.
+Each saved capture is stored in a video-specific folder:
+
+- Downloads/NameThatMatch/<videoId>/
+
+The saved files are named with the same capture ID stem, for example:
+
+- 20261105T153025Z-5f4c8c87a1.png
+- 20261105T153025Z-5f4c8c87a1.json
+
+The extension generates a new capture ID for each capture, even if the video and timestamp match an earlier save.
+
+## Privacy and local-only behavior
+
+- No cloud services are used.
+- No telemetry or analytics are collected by the extension.
+- No database, queue, or internet-based sync is required.
+- Files are saved only to the user’s local Downloads directory.
+- The extension does not bypass DRM, access restrictions, or browser security boundaries.
+
+## Known limitations
+
+- Only standard YouTube watch pages are supported.
+- Video capture is rejected unless the player is paused.
+- The extension cannot capture protected or restricted media content.
+- If the tab changes or the video is unavailable, the capture fails safely.
+- A partial PNG/JSON pair is treated as a failure and is not reported as success.
+
+## Troubleshooting
+
+Common issues:
+
+- Capture fails because the page is not a standard watch page.
+  - Open a normal YouTube watch URL with a valid video ID.
+- Capture fails with “Pause the video before triggering a capture.”
+  - Pause the video and retry.
+- Capture hangs or the page is not ready.
+  - Reload the tab and try again.
+- PNG or metadata file did not download.
+  - Check Chrome download permissions and confirm the default Downloads directory is available.
+- The shortcut does not fire.
+  - Confirm the extension is enabled and the shortcut was not overridden by another app or Chrome command.
+
+## Maintenance notes
+
+This project intentionally keeps the implementation narrow and reliable:
+
+- no React
+- no Tailwind
+- no cloud services
+- no batch export system
+- no persistent queue
+- no automatic cropping or enhancement of source video frames
+
+## Content and copyright
+
+Captured wrestling footage may be protected by copyright. Users are responsible for ensuring they have the necessary rights or permissions for the intended use.
+
+The extension does not bypass DRM, access controls, or content restrictions.
 
 ## License
 
