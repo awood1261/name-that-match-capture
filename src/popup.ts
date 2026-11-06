@@ -17,12 +17,22 @@ function definePopupActions(): void {
     setStatus(statusNode, 'Preparing capture…', null);
     triggerButton.disabled = true;
 
+    const responseTimeout = window.setTimeout(() => {
+      triggerButton.disabled = false;
+      setStatus(
+        statusNode,
+        'Capture is taking longer than expected. Please wait or reload the tab if it does not finish.',
+        'error'
+      );
+    }, 60000);
+
     chrome.runtime.sendMessage(
       {
         type: 'START_CAPTURE',
         requestId: `popup-${Date.now()}`
       },
       (result) => {
+        window.clearTimeout(responseTimeout);
         triggerButton.disabled = false;
 
         if (chrome.runtime.lastError) {

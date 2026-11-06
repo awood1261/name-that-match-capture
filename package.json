@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --project tsconfig.json && mkdir -p dist && cp src/manifest.json dist/manifest.json && cp src/popup.html dist/popup.html && cp src/styles.css dist/styles.css && cp dist/src/background.js dist/background.js && cp dist/src/content.js dist/content.js && cp dist/src/popup.js dist/popup.js",
+    "build": "tsc --project tsconfig.json && mkdir -p dist && cp src/manifest.json dist/manifest.json && cp src/popup.html dist/popup.html && cp src/styles.css dist/styles.css && cp dist/src/*.js dist/",
     "test": "vitest run",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },

@@ -157,7 +157,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
       return true;
     }
 
-    if (message.type === 'CAPTURE_VIDEO_FRAME') {
+      if (message.type === 'CAPTURE_VIDEO_FRAME') {
       try {
         const state = getVideoState();
         if (!state.ok) {
@@ -175,13 +175,16 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
           return true;
         }
 
+        const { width, height } = chooseCaptureDimensions(video);
         const dataUrl = capturePlayerFrame(video);
 
         sendResponse({
           ok: true,
           data: {
             ...state.data,
-            dataUrl
+            dataUrl,
+            imageWidth: width,
+            imageHeight: height
           }
         });
         return true;
