@@ -43,7 +43,7 @@ Example:
 Required fields:
 - `playbackSeconds`: number, required, MUST be a finite numeric value representing the playback position at capture time.
 - `capturedAt`: string, required, MUST use ISO 8601 UTC format, e.g. `2026-11-05T15:30:25.000Z`.
-- `method`: string, required, MUST be `visibleTab-crop` or `visibleTab-crop-fallback` only if the approved fallback is explicitly enabled in implementation.
+- `method`: string, required, MUST be `video-frame-capture` or `video-frame-capture-fallback` only if the approved fallback is explicitly enabled in implementation.
 
 Example:
 
@@ -51,7 +51,7 @@ Example:
 "capture": {
   "playbackSeconds": 482.25,
   "capturedAt": "2026-11-05T15:30:25.000Z",
-  "method": "visibleTab-crop"
+  "method": "video-frame-capture"
 }
 ```
 
@@ -113,7 +113,7 @@ Valid example:
   "capture": {
     "playbackSeconds": 482.25,
     "capturedAt": "2026-11-05T15:30:25.000Z",
-    "method": "visibleTab-crop"
+    "method": "video-frame-capture"
   },
   "image": {
     "filename": "20261105T153025Z-5f4c8c87a1.png",
@@ -139,7 +139,7 @@ Invalid example:
   "capture": {
     "playbackSeconds": NaN,
     "capturedAt": "not-a-date",
-    "method": "visibleTab-crop"
+    "method": "video-frame-capture"
   },
   "image": {
     "filename": "capture.png",
@@ -167,35 +167,31 @@ The extension MUST allow a user to trigger a capture from a supported YouTube wa
 - **WHEN** the user triggers capture while the YouTube video is still playing
 - **THEN** the extension SHALL reject the request and SHALL require the user to pause before retrying
 
-### Requirement: Detect and validate the visible video region
-The extension MUST detect the YouTube video element and determine its fully visible bounding rectangle in the viewport before accepting a capture. A capture MUST be rejected when the video region is missing, not fully visible, or otherwise not measurable.
+### Requirement: Directly render the current video frame to a canvas
+The extension MUST locate the active `HTMLVideoElement` on a supported YouTube watch page and render the current frame into a canvas using a browser-supported DOM API. A capture MUST be rejected when the video media element is missing, not paused, unavailable, or cannot be rendered into a safe canvas without violating browser security boundaries.
 
-#### Scenario: Valid player region detection
-- **WHEN** the YouTube video element is present, paused, and fully visible in the viewport
-- **THEN** the extension SHALL compute the visible player bounds and continue with the capture flow
+#### Scenario: Valid direct frame extraction
+- **WHEN** the YouTube video element is present, paused, and renderable in the page context
+- **THEN** the extension SHALL draw the current frame to a canvas and continue with the save flow
 
-#### Scenario: Missing or invalid player bounds
-- **WHEN** the video region cannot be determined or falls outside the visible viewport
-- **THEN** the extension SHALL fail the capture and SHALL NOT silently save a full-tab image
+#### Scenario: Missing or invalid video element state
+- **WHEN** the video element cannot be found or cannot be rendered into a canvas safely
+- **THEN** the extension SHALL fail the capture and SHALL NOT silently save a full-page or full-tab screenshot
 
-#### Scenario: Controls remain visible
-- **WHEN** the YouTube player controls or other chrome remains visible inside the player region
-- **THEN** the extension SHALL include the rendered video rectangle as-is and SHALL NOT attempt to remove overlays using image manipulation
+#### Scenario: Browser security restriction or tainted canvas
+- **WHEN** a browser security boundary prevents safe canvas rendering from the media element
+- **THEN** the extension SHALL fail with a clear error and SHALL NOT bypass protections or attempt to bypass DRM or cross-origin restrictions
 
-### Requirement: Capture the visible tab and crop only the measured player region
-The extension MUST capture the visible tab using Chrome’s supported browser API and MUST compute the crop from the actual captured image and viewport dimensions. The crop MUST preserve the displayed video aspect ratio and MUST include any letterboxing present inside the video rectangle. The extension MUST reject invalid crop coordinates or out-of-bounds calculations.
+### Requirement: Preserve source geometry and avoid enhancement
+The extension MUST preserve the original frame geometry and source resolution where supported. The direct canvas capture MUST NOT apply automatic cropping, sharpening, upscaling, or any other image enhancement, and MUST preserve the original aspect ratio of the source frame.
 
-#### Scenario: Normal player mode
-- **WHEN** a standard, non-theater YouTube player is visible and measurable
-- **THEN** the extension SHALL crop the visible tab image to the measured player region while preserving the displayed video aspect ratio
+#### Scenario: Source aspect ratio is preserved
+- **WHEN** the active video is presented in standard widescreen or older 4:3 format
+- **THEN** the extension SHALL save the frame without resizing or altering the original display proportions beyond the source resolution exposed by the browser
 
-#### Scenario: Theater mode with supported layout
-- **WHEN** the video is in a theater-mode layout and the player region remains measurable
-- **THEN** the extension SHALL crop to the visible player rectangle and SHALL include any letterboxing inside that region
-
-#### Scenario: Browser zoom or Retina scaling
-- **WHEN** the browser is at 100% zoom or another zoom value and the display uses Retina-style scaling
-- **THEN** the extension SHALL calculate the crop using the actual captured image and viewport size instead of assuming a fixed DPR multiplier
+#### Scenario: Enhancement is explicitly excluded
+- **WHEN** a capture would require automatic crop, sharpen, or upscale logic
+- **THEN** the extension SHALL reject the enhancement request and SHALL preserve the source frame as captured
 
 ### Requirement: Collect and validate source metadata
 The extension MUST collect the YouTube video ID, canonical URL, source title when available, playback timestamp in seconds, and capture timestamp in UTC. The metadata MUST be validated at runtime before saving so required fields and value formats are verified.
@@ -231,10 +227,10 @@ The extension MUST support repeated captures from the same YouTube video in a si
 - **THEN** the extension SHALL still save a new file pair using a unique capture ID and SHALL NOT reject the action under the MVP rules
 
 ### Requirement: Enforce safety and compatibility constraints
-The extension MUST respect the MVP constraints: standard YouTube watch pages only, no Shorts or embedded players, no YouTube Music, no DRM bypass, no downloaded video content, no database, no cloud backend, and no silent fallback to full-page screenshots when the video cannot be reliably measured.
+The extension MUST respect the MVP constraints: standard YouTube watch pages only, no Shorts or embedded players, no YouTube Music, no DRM bypass, no downloaded video content, no database, no cloud backend, and no silent fallback to full-page screenshots when the media frame cannot be safely rendered.
 
 #### Scenario: Restricted or unsupported content
-- **WHEN** YouTube content is protected, restricted, or otherwise not available to the browser extension for visible capture
+- **WHEN** YouTube content is protected, restricted, or otherwise not available to the browser extension for direct frame capture
 - **THEN** the extension SHALL stop without bypassing browser or DRM protections and SHALL show a clear user-facing error
 
 #### Scenario: Unsupported page type
