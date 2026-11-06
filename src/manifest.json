@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Name That Match Capture",
+  "version": "0.1.0",
+  "description": "Capture paused YouTube frames for local match image collection.",
+  "permissions": [
+    "activeTab",
+    "commands",
+    "downloads",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*"
+  ],
+  "action": {
+    "default_title": "Capture paused frame",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "capture-video": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Capture a paused YouTube frame"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/watch*",
+        "https://youtube.com/watch*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "name-that-match-capture",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --project tsconfig.json && mkdir -p dist && cp src/manifest.json dist/manifest.json && cp src/popup.html dist/popup.html && cp src/styles.css dist/styles.css && cp dist/src/background.js dist/background.js && cp dist/src/content.js dist/content.js && cp dist/src/popup.js dist/popup.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^20.14.12",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
