@@ -6,7 +6,7 @@ body {
 }
 
 .popup {
-  width: 260px;
+  width: 280px;
   padding: 12px;
   box-sizing: border-box;
 }
@@ -27,10 +27,22 @@ button {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-button:hover {
+button:hover:not(:disabled) {
   background: #1d4ed8;
+}
+
+button:disabled {
+  background: #374151;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+button:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
 }
 
 .status {
@@ -42,10 +54,20 @@ button:hover {
   white-space: pre-wrap;
 }
 
+.status.info {
+  color: #bfdbfe;
+}
+
 .status.error {
   color: #fca5a5;
 }
 
 .status.success {
   color: #86efac;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
 }

@@ -9,8 +9,8 @@
   <body>
     <div class="popup">
       <h1 class="title">Name That Match Capture</h1>
-      <button id="capture-button" type="button">Capture paused frame</button>
-      <div id="status" class="status" aria-live="polite"></div>
+      <button id="capture-button" type="button" aria-live="polite">Capture paused frame</button>
+      <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
     </div>
     <script type="module" src="popup.js"></script>
   </body>

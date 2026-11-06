@@ -1,4 +1,5 @@
 const STATUS_CLASS = {
+  info: 'info',
   error: 'error',
   success: 'success'
 } as const;
@@ -13,12 +14,24 @@ function definePopupActions(): void {
     return;
   }
 
+  const setBusy = (isBusy: boolean): void => {
+    triggerButton.disabled = isBusy;
+    triggerButton.setAttribute('aria-busy', String(isBusy));
+    triggerButton.textContent = isBusy ? 'Capturing…' : 'Capture paused frame';
+  };
+
+  setStatus(statusNode, 'Ready', 'info');
+
   triggerButton.addEventListener('click', () => {
-    setStatus(statusNode, 'Preparing capture…', null);
-    triggerButton.disabled = true;
+    if (triggerButton.disabled) {
+      return;
+    }
+
+    setStatus(statusNode, 'Capturing and saving…', 'info');
+    setBusy(true);
 
     const responseTimeout = window.setTimeout(() => {
-      triggerButton.disabled = false;
+      setBusy(false);
       setStatus(
         statusNode,
         'Capture is taking longer than expected. Please wait or reload the tab if it does not finish.',
@@ -33,7 +46,7 @@ function definePopupActions(): void {
       },
       (result) => {
         window.clearTimeout(responseTimeout);
-        triggerButton.disabled = false;
+        setBusy(false);
 
         if (chrome.runtime.lastError) {
           setStatus(
@@ -45,7 +58,11 @@ function definePopupActions(): void {
         }
 
         if (!result?.ok) {
-          setStatus(statusNode, result?.message ?? 'Capture failed.', 'error');
+          setStatus(
+            statusNode,
+            result?.message ?? 'Capture failed. Please retry from a paused YouTube watch page.',
+            'error'
+          );
           return;
         }
 
@@ -57,7 +74,7 @@ function definePopupActions(): void {
 
 function setStatus(node: HTMLDivElement, value: string, variant: keyof typeof STATUS_CLASS | null): void {
   node.textContent = value;
-  node.classList.remove(STATUS_CLASS.error, STATUS_CLASS.success);
+  node.classList.remove(...Object.values(STATUS_CLASS));
 
   if (variant) {
     node.classList.add(STATUS_CLASS[variant]);

@@ -51,6 +51,59 @@ type CaptureResult =
 
 const PAGE_NOT_READY_MESSAGE = 'The YouTube page is not ready yet. Please reload the tab and try again.';
 const MAX_READ_VIDEO_STATE_ATTEMPTS = 3;
+let captureInProgress = false;
+
+export function setCaptureBadgeState(state: 'idle' | 'in-progress' | 'success' | 'error', message?: string): void {
+  if (typeof chrome === 'undefined' || !chrome.action) {
+    return;
+  }
+
+  if (state === 'idle') {
+    chrome.action.setBadgeText({ text: '' });
+    if ('setTitle' in chrome.action) {
+      chrome.action.setTitle({ title: 'Capture paused frame' });
+    }
+    return;
+  }
+
+  const badgeText = state === 'in-progress' ? '…' : state === 'success' ? 'OK' : '!';
+  const badgeColor = state === 'in-progress' ? '#2563eb' : state === 'success' ? '#16a34a' : '#dc2626';
+
+  chrome.action.setBadgeText({ text: badgeText });
+  chrome.action.setBadgeBackgroundColor({ color: badgeColor });
+
+  if (message && 'setTitle' in chrome.action) {
+    chrome.action.setTitle({ title: message });
+  }
+}
+
+export async function withCaptureLock<T>(run: () => Promise<T>): Promise<{ ok: true; value: T } | { ok: false; code: 'CAPTURE_IN_PROGRESS'; message: string }> {
+  if (captureInProgress) {
+    return {
+      ok: false,
+      code: 'CAPTURE_IN_PROGRESS',
+      message: 'A capture is already in progress. Please wait for it to finish.'
+    };
+  }
+
+  captureInProgress = true;
+  setCaptureBadgeState('in-progress', 'Capturing frame…');
+
+  try {
+    return {
+      ok: true,
+      value: await run()
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'CAPTURE_IN_PROGRESS',
+      message: error instanceof Error ? error.message : 'Capture failed while in progress.'
+    };
+  } finally {
+    captureInProgress = false;
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallbackMessage: string): Promise<T> {
   return Promise.race([
@@ -233,74 +286,90 @@ export async function readVideoState(tabId: number, attempt = 0): Promise<Backgr
   }
 }
 
-async function captureFromActiveTab(request: CaptureRequest): Promise<CaptureResult> {
-  console.log('[capture] captureFromActiveTab start', request.requestId);
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+export async function captureFromActiveTab(request: CaptureRequest): Promise<CaptureResult> {
+  const lockResult = await withCaptureLock(async () => {
+    console.log('[capture] captureFromActiveTab start', request.requestId);
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab?.id) {
+    if (!tab?.id) {
+      return {
+        ok: false,
+        requestId: request.requestId,
+        code: 'NO_ACTIVE_TAB',
+        message: 'No active tab is available to capture.'
+      } satisfies CaptureResult;
+    }
+
+    if (!isSupportedWatchUrl(tab.url)) {
+      return {
+        ok: false,
+        requestId: request.requestId,
+        code: 'UNSUPPORTED_PAGE',
+        message: 'Open a standard YouTube watch page and pause the video before capturing.'
+      } satisfies CaptureResult;
+    }
+
+    console.log('[capture] active tab', tab.id, tab.url);
+    const response = await readVideoState(tab.id);
+
+    if (!response || !response.ok) {
+      return {
+        ok: false,
+        requestId: request.requestId,
+        code: response?.code ?? 'UNSUPPORTED_PAGE',
+        message: response?.message ?? 'Open a supported YouTube watch page and pause the video.'
+      } satisfies CaptureResult;
+    }
+
+    console.log('[capture] building metadata for', response.data.videoId);
+    const metadata = buildCaptureMetadata({
+      videoId: response.data.videoId,
+      canonicalUrl: response.data.canonicalUrl,
+      title: response.data.title,
+      playbackSeconds: response.data.playbackSeconds,
+      imageWidth: response.data.imageWidth ?? response.data.rect.width,
+      imageHeight: response.data.imageHeight ?? response.data.rect.height
+    });
+
+    console.log('[capture] saving capture pair');
+    const downloadResult = await saveCapturePair({
+      videoId: response.data.videoId,
+      pngDataUrl: response.data.dataUrl,
+      metadata
+    });
+
+    if (!downloadResult.ok) {
+      console.log('[capture] save failed', downloadResult);
+      return {
+        ok: false,
+        requestId: request.requestId,
+        code: downloadResult.code,
+        message: downloadResult.message
+      } satisfies CaptureResult;
+    }
+
+    console.log('[capture] save succeeded', downloadResult);
     return {
-      ok: false,
+      ok: true,
       requestId: request.requestId,
-      code: 'NO_ACTIVE_TAB',
-      message: 'No active tab is available to capture.'
-    };
-  }
-
-  if (!isSupportedWatchUrl(tab.url)) {
-    return {
-      ok: false,
-      requestId: request.requestId,
-      code: 'UNSUPPORTED_PAGE',
-      message: 'Open a standard YouTube watch page and pause the video before capturing.'
-    };
-  }
-
-  console.log('[capture] active tab', tab.id, tab.url);
-  const response = await readVideoState(tab.id);
-
-  if (!response || !response.ok) {
-    return {
-      ok: false,
-      requestId: request.requestId,
-      code: response?.code ?? 'UNSUPPORTED_PAGE',
-      message: response?.message ?? 'Open a supported YouTube watch page and pause the video.'
-    };
-  }
-
-  console.log('[capture] building metadata for', response.data.videoId);
-  const metadata = buildCaptureMetadata({
-    videoId: response.data.videoId,
-    canonicalUrl: response.data.canonicalUrl,
-    title: response.data.title,
-    playbackSeconds: response.data.playbackSeconds,
-    imageWidth: response.data.imageWidth ?? response.data.rect.width,
-    imageHeight: response.data.imageHeight ?? response.data.rect.height
+      message: `Saved screenshot for ${response.data.videoId}.`,
+      downloadId: downloadResult.pngDownloadId
+    } satisfies CaptureResult;
   });
 
-  console.log('[capture] saving capture pair');
-  const downloadResult = await saveCapturePair({
-    videoId: response.data.videoId,
-    pngDataUrl: response.data.dataUrl,
-    metadata
-  });
-
-  if (!downloadResult.ok) {
-    console.log('[capture] save failed', downloadResult);
+  if (!lockResult.ok) {
+    setCaptureBadgeState('error', lockResult.message);
     return {
       ok: false,
       requestId: request.requestId,
-      code: downloadResult.code,
-      message: downloadResult.message
-    };
+      code: lockResult.code,
+      message: lockResult.message
+    } satisfies CaptureResult;
   }
 
-  console.log('[capture] save succeeded', downloadResult);
-  return {
-    ok: true,
-    requestId: request.requestId,
-    message: `Saved screenshot for ${response.data.videoId}.`,
-    downloadId: downloadResult.pngDownloadId
-  };
+  const result = lockResult.value;
+  setCaptureBadgeState(result.ok ? 'success' : 'error', result.message);
+  return result;
 }
 
 if (typeof chrome !== 'undefined' && chrome.commands && chrome.commands.onCommand) {

@@ -5,7 +5,6 @@
   "description": "Capture paused YouTube frames for local match image collection.",
   "permissions": [
     "activeTab",
-    "commands",
     "downloads",
     "scripting",
     "tabs"
@@ -21,7 +20,7 @@
     "capture-video": {
       "suggested_key": {
         "default": "Ctrl+Shift+Y",
-        "mac": "Command+Shift+Y"
+        "mac": "Command+Control+Y"
       },
       "description": "Capture a paused YouTube frame"
     }

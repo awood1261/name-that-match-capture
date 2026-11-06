@@ -64,6 +64,21 @@ The extension will eventually produce image assets and structured metadata that 
 
 The integration contract will be defined through OpenSpec to avoid tightly coupling the two repositories.
 
+## Usage
+
+To capture a paused frame from a YouTube watch page:
+
+1. Load the extension in Chrome using Developer mode and the unpacked project folder.
+2. Open a standard YouTube watch page and pause the video.
+3. Use the extension popup button or the keyboard shortcut.
+
+### Keyboard shortcut
+
+- macOS: `Command+Control+Y`
+- Windows/Linux: `Ctrl+Shift+Y`
+
+This shortcut is intentionally set away from the common `Command+Shift+Y` combination because that binding is frequently consumed by screen-capture utilities such as Screeny.
+
 ## Project Status
 
 **Phase: Initial setup / architectural exploration**

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { chooseCaptureDimensions } from '../src/content';
-import { readVideoState } from '../src/background';
+import { readVideoState, setCaptureBadgeState, withCaptureLock } from '../src/background';
 import {
   buildCaptureId,
   buildCaptureMetadata,
@@ -250,6 +250,53 @@ describe('background page-read guardrails', () => {
     expect(result.code).toBe('PAGE_NOT_READY');
     expect(result.message).toContain('YouTube page is not ready');
     expect(executeScript).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('capture concurrency and feedback', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects overlapping capture requests while a capture is in progress', async () => {
+    const first = withCaptureLock(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { ok: true, message: 'saved' };
+    });
+
+    const second = withCaptureLock(async () => {
+      return { ok: true, message: 'not reached' };
+    });
+
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+
+    expect(firstResult.ok).toBe(true);
+    expect(secondResult.ok).toBe(false);
+    if (secondResult.ok) {
+      throw new Error('expected the second capture to be blocked');
+    }
+    expect(secondResult.code).toBe('CAPTURE_IN_PROGRESS');
+  });
+
+  it('updates the extension badge for progress and success states', () => {
+    const setBadgeText = vi.fn();
+    const setBadgeBackgroundColor = vi.fn();
+    const setTitle = vi.fn();
+
+    vi.stubGlobal('chrome', {
+      action: {
+        setBadgeText,
+        setBadgeBackgroundColor,
+        setTitle
+      }
+    });
+
+    setCaptureBadgeState('in-progress', 'Capturing frame…');
+    setCaptureBadgeState('success', 'Saved screenshot');
+
+    expect(setBadgeText).toHaveBeenNthCalledWith(1, { text: '…' });
+    expect(setBadgeText).toHaveBeenNthCalledWith(2, { text: 'OK' });
+    expect(setTitle).toHaveBeenNthCalledWith(2, { title: 'Saved screenshot' });
   });
 });
 
